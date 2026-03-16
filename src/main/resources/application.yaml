@@ -1,15 +1,18 @@
 spring:
-  kafka:
-    bootstrap-servers: 127.0.0.1:29092
-  r2dbc:
-    driver-class-name: org.postgresql.Driver
-    url: r2dbc:postgresql://localhost:5432/discount
-    username: postgres
-    password: Vaifery111
   application:
     name: discount
-
+  datasource:
+    url: jdbc:postgresql://localhost:5432/discount
+    username: postgres
+    password: Vaifery111
+    driver-class-name: org.postgresql.Driver
+  kafka:
+    bootstrap-servers: 127.0.0.1:29092
 
 server:
   port: 7005
 
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
