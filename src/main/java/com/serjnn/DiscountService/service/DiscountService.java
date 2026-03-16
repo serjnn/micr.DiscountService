@@ -22,45 +22,34 @@ public class DiscountService {
     private final KafkaSender kafkaSender;
 
     public void addDiscounts(List<DiscountRequest> requests) {
-        requests.forEach(request -> {
-            discountRepository.findByProductId(request.productId()) // todo !!!
-                    .ifPresentOrElse(
-                            existing -> {
-                                double newDiscount = request.discount();
-                                double prevDiscount = existing.discount();
+        for (DiscountRequest request : requests) {
+            long productId = request.productId();
+            double newDiscount = request.discount();
 
-                                sendDiscountChanges(new DiscountChangesDto(
-                                        request.productId(),
-                                        newDiscount,
-                                        prevDiscount));
+            Optional<DiscountEntity> existingOpt = discountRepository.findByProductId(productId);
 
-                                DiscountEntity updated = new DiscountEntity(
-                                        existing.id(),
-                                        existing.productId(),
-                                        newDiscount);
-                                discountRepository.update(updated);
-                                log.info("Updated discount for product {}: {} -> {}", 
-                                        request.productId(), prevDiscount, newDiscount);
-                            },
-                            () -> {
-                                DiscountEntity newEntity = new DiscountEntity(
-                                        null, 
-                                        request.productId(), 
-                                        request.discount());
-                                discountRepository.save(newEntity);
-                                sendDiscountChanges(new DiscountChangesDto(
-                                        request.productId(),
-                                        request.discount()
-                                ));
-                                log.info("Added new discount for product {}: {}", 
-                                        request.productId(), request.discount());
-                            }
-                    );
-        });
+            if (existingOpt.isPresent()) {
+                DiscountEntity existing = existingOpt.get();
+                double prevDiscount = existing.discount();
+
+                DiscountEntity updated = new DiscountEntity(existing.id(), productId, newDiscount);
+                discountRepository.update(updated);
+
+                sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, prevDiscount));
+                log.info("Updated discount for product {}: {} -> {}", productId, prevDiscount, newDiscount);
+            } else {
+                DiscountEntity newEntity = new DiscountEntity(null, productId, newDiscount);
+                discountRepository.save(newEntity);
+
+                sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, 0.0));
+                log.info("Added new discount for product {}: {}", productId, newDiscount);
+            }
+        }
     }
 
+
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
-        kafkaSender.sendNewDiscount("discountChangesTopic", discountChangesDto); // todo
+        kafkaSender.sendNewDiscount("discountChangesTopic", discountChangesDto);
     }
 
     public Optional<DiscountResponse> findByProductId(long productId) {
@@ -69,7 +58,7 @@ public class DiscountService {
     }
 
     public List<DiscountResponse> getAllDiscounts() {
-        return discountRepository.findAll().stream()// todo !!!
+        return discountRepository.findAll().stream()
                 .map(entity -> new DiscountResponse(entity.productId(), entity.discount()))
                 .toList();
     }

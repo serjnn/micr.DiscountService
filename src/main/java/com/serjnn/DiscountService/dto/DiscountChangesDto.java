@@ -3,9 +3,6 @@ package com.serjnn.DiscountService.dto;
 public record DiscountChangesDto(
         long productId,
         double newDiscount,
-        Double prevDiscount
+        double prevDiscount
 ) {
-    public DiscountChangesDto(long productId, double newDiscount) {
-        this(productId, newDiscount, null);
-    }
 }

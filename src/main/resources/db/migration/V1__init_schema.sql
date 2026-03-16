@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS discount_entity (
+    id SERIAL PRIMARY KEY,
+    product_id BIGINT NOT NULL UNIQUE,
+    discount DOUBLE PRECISION NOT NULL
+);

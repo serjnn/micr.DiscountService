@@ -23,7 +23,7 @@ public class DiscountController {
     }
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED) // todo !!!
+    @ResponseStatus(HttpStatus.CREATED)
     public void createOrUpdateDiscounts(@RequestBody List<DiscountRequest> discountRequests) {
         discountService.addDiscounts(discountRequests);
     }
