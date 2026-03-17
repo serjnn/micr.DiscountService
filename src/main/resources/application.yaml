@@ -6,6 +6,10 @@ spring:
     username: postgres
     password: Vaifery111
     driver-class-name: org.postgresql.Driver
+  flyway:
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
   kafka:
     bootstrap-servers: 127.0.0.1:29092
 
