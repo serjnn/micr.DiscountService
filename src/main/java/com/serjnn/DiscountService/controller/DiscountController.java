@@ -14,7 +14,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/discounts")
 public class DiscountController {
-
+y
     private final DiscountService discountService;
 
     @GetMapping
