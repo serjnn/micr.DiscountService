@@ -38,7 +38,7 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         kafkaMessages.clear();
     }
 
-    @KafkaListener(topics = "discountChangesTopic", groupId = "test-group")
+    @KafkaListener(topics = "${spring.kafka.topic.discount-changes}", groupId = "test-group")
     public void listen(DiscountChangesDto message) {
         kafkaMessages.add(message);
     }

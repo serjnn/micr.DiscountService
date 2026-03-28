@@ -2,21 +2,24 @@ spring:
   application:
     name: discount
   datasource:
-    url: jdbc:postgresql://localhost:5432/discount
-    username: postgres
-    password: Vaifery111
+    url: ${DATASOURCE_URL:jdbc:postgresql://localhost:5432/micr-synch}
+    username: ${DATASOURCE_USERNAME:qwe}
+    password: ${DATASOURCE_PASSWORD:qwe}
     driver-class-name: org.postgresql.Driver
   flyway:
     url: ${spring.datasource.url}
     user: ${spring.datasource.username}
     password: ${spring.datasource.password}
   kafka:
-    bootstrap-servers: 127.0.0.1:29092
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:29092}
+    topic:
+      discount-changes: ${KAFKA_TOPIC_DISCOUNT_CHANGES:discountChangesTopic}
+      partitions: ${KAFKA_TOPIC_PARTITIONS:3}
 
 server:
-  port: 7005
+  port: ${SERVER_PORT:7005}
 
 eureka:
   client:
     service-url:
-      defaultZone: http://localhost:8761/eureka/
+      defaultZone: ${EUREKA_SERVICE_URL:http://localhost:8761/eureka/}

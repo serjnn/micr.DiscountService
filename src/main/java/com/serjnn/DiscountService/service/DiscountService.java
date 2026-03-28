@@ -8,6 +8,7 @@ import com.serjnn.DiscountService.model.DiscountEntity;
 import com.serjnn.DiscountService.repository.DiscountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,6 +21,9 @@ public class DiscountService {
 
     private final DiscountRepository discountRepository;
     private final KafkaSender kafkaSender;
+
+    @Value("${spring.kafka.topic.discount-changes}")
+    private String discountChangesTopic;
 
     public void addDiscounts(List<DiscountRequest> requests) {
         for (DiscountRequest request : requests) {
@@ -49,7 +53,7 @@ public class DiscountService {
 
 
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
-        kafkaSender.sendNewDiscount("discountChangesTopic", discountChangesDto);
+        kafkaSender.sendNewDiscount(discountChangesTopic, discountChangesDto);
     }
 
     public Optional<DiscountResponse> findByProductId(long productId) {
