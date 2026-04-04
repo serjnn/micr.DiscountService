@@ -26,9 +26,11 @@ public class DiscountService {
     private String discountChangesTopic;
 
     public void addDiscounts(List<DiscountRequest> requests) {
+        log.info("Starting processing {} discount requests", requests.size());
         for (DiscountRequest request : requests) {
             long productId = request.productId();
             double newDiscount = request.discount();
+            log.debug("Processing discount for product {}: {}", productId, newDiscount);
 
             Optional<DiscountEntity> existingOpt = discountRepository.findByProductId(productId);
 
@@ -36,12 +38,15 @@ public class DiscountService {
                 DiscountEntity existing = existingOpt.get();
                 double prevDiscount = existing.discount();
 
+                log.info("Found existing discount for product {}: prev={}, new={}", productId, prevDiscount, newDiscount);
+
                 DiscountEntity updated = new DiscountEntity(existing.id(), productId, newDiscount);
                 discountRepository.update(updated);
 
                 sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, prevDiscount));
                 log.info("Updated discount for product {}: {} -> {}", productId, prevDiscount, newDiscount);
             } else {
+                log.info("No existing discount for product {}. Adding new discount: {}", productId, newDiscount);
                 DiscountEntity newEntity = new DiscountEntity(null, productId, newDiscount);
                 discountRepository.save(newEntity);
 
@@ -49,21 +54,30 @@ public class DiscountService {
                 log.info("Added new discount for product {}: {}", productId, newDiscount);
             }
         }
-    }
+        log.info("Finished processing discount requests");
+    } // todo
 
 
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
+        log.debug("Sending discount change event to Kafka: {}", discountChangesDto);
         kafkaSender.sendNewDiscount(discountChangesTopic, discountChangesDto);
     }
 
     public Optional<DiscountResponse> findByProductId(long productId) {
+        log.debug("Searching for discount for product id: {}", productId);
         return discountRepository.findByProductId(productId)
-                .map(entity -> new DiscountResponse(entity.productId(), entity.discount()));
+                .map(entity -> {
+                    log.debug("Discount found for product id: {}", productId);
+                    return new DiscountResponse(entity.productId(), entity.discount());
+                });
     }
 
     public List<DiscountResponse> getAllDiscounts() {
-        return discountRepository.findAll().stream()
+        log.debug("Fetching all discounts from repository");
+        List<DiscountResponse> discounts = discountRepository.findAll().stream()
                 .map(entity -> new DiscountResponse(entity.productId(), entity.discount()))
                 .toList();
+        log.debug("Found {} discounts", discounts.size());
+        return discounts;
     }
 }
