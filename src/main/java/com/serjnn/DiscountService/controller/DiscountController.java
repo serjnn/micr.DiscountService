@@ -33,7 +33,7 @@ public class DiscountController {
         log.info("Received request to create/update {} discounts", discountRequests.size());
         discountService.addDiscounts(discountRequests);
         log.info("Successfully processed discount create/update request");
-    }
+    } // todo why are we getting list, we need 201 or 200 if we updating
 
     @GetMapping("/{productId}")
     public ResponseEntity<DiscountResponse> getByProductId(@PathVariable long productId) {
@@ -45,7 +45,7 @@ public class DiscountController {
                 })
                 .orElseGet(() -> {
                     log.warn("Discount not found for product id: {}", productId);
-                    return ResponseEntity.notFound().build();
+                    return ResponseEntity.status(200).build();
                 });
     }
 }
