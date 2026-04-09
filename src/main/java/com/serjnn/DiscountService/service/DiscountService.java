@@ -3,12 +3,12 @@ package com.serjnn.DiscountService.service;
 import com.serjnn.DiscountService.dto.DiscountChangesDto;
 import com.serjnn.DiscountService.dto.DiscountRequest;
 import com.serjnn.DiscountService.dto.DiscountResponse;
-import com.serjnn.DiscountService.kafka.KafkaSender;
 import com.serjnn.DiscountService.model.DiscountEntity;
 import com.serjnn.DiscountService.repository.DiscountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,10 +20,10 @@ import java.util.Optional;
 public class DiscountService {
 
     private final DiscountRepository discountRepository;
-    private final KafkaSender kafkaSender;
+    private final RedisTemplate<String, Object> redisTemplate;
 
-    @Value("${spring.kafka.topic.discount-changes}")
-    private String discountChangesTopic;
+    @Value("${app.redis.channel.discount-eviction}")
+    private String discountEvictionChannel;
 
     public void addDiscounts(List<DiscountRequest> requests) {
         log.info("Starting processing {} discount requests", requests.size());
@@ -59,8 +59,8 @@ public class DiscountService {
 
 
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
-        log.debug("Sending discount change event to Kafka: {}", discountChangesDto);
-        kafkaSender.sendNewDiscount(discountChangesTopic, discountChangesDto);
+        log.debug("Sending discount change event to Redis channel {}: {}", discountEvictionChannel, discountChangesDto);
+        redisTemplate.convertAndSend(discountEvictionChannel, discountChangesDto);
     }
 
     public Optional<DiscountResponse> findByProductId(long productId) {

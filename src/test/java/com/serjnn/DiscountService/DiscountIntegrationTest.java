@@ -5,22 +5,25 @@ import com.serjnn.DiscountService.dto.DiscountRequest;
 import com.serjnn.DiscountService.dto.DiscountResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.kafka.annotation.KafkaListener;
 
 import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 public class DiscountIntegrationTest extends BaseIntegrationTest {
 
@@ -30,21 +33,19 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private static final BlockingQueue<DiscountChangesDto> kafkaMessages = new LinkedBlockingQueue<>();
+    @SpyBean
+    private RedisTemplate<String, Object> redisTemplate;
+
+    @Value("${app.redis.channel.discount-eviction}")
+    private String discountEvictionChannel;
 
     @BeforeEach
     void setUp() {
         jdbcTemplate.execute("TRUNCATE TABLE discount_entity RESTART IDENTITY CASCADE");
-        kafkaMessages.clear();
-    }
-
-    @KafkaListener(topics = "${spring.kafka.topic.discount-changes}", groupId = "test-group")
-    public void listen(DiscountChangesDto message) {
-        kafkaMessages.add(message);
     }
 
     @Test
-    void shouldCreateAndThenUpdateDiscount() throws InterruptedException {
+    void shouldCreateAndThenUpdateDiscount() {
         // 1. Add new discount
         DiscountRequest request = new DiscountRequest(101L, 15.5);
         ResponseEntity<Void> response = restTemplate.postForEntity("/api/v1/discounts", List.of(request), Void.class);
@@ -57,9 +58,11 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         assertThat(getResponse.getBody().productId()).isEqualTo(101L);
         assertThat(getResponse.getBody().discount()).isEqualTo(15.5);
 
-        // 3. Verify Kafka message for NEW discount
-        DiscountChangesDto firstMessage = kafkaMessages.poll(10, TimeUnit.SECONDS);
-        assertThat(firstMessage).isNotNull();
+        // 3. Verify Redis message for NEW discount
+        ArgumentCaptor<DiscountChangesDto> captor = ArgumentCaptor.forClass(DiscountChangesDto.class);
+        verify(redisTemplate, atLeastOnce()).convertAndSend(eq(discountEvictionChannel), captor.capture());
+        
+        DiscountChangesDto firstMessage = captor.getValue();
         assertThat(firstMessage.productId()).isEqualTo(101L);
         assertThat(firstMessage.newDiscount()).isEqualTo(15.5);
         assertThat(firstMessage.prevDiscount()).isEqualTo(0.0);
@@ -72,9 +75,9 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         ResponseEntity<DiscountResponse> updatedGetResponse = restTemplate.getForEntity("/api/v1/discounts/101", DiscountResponse.class);
         assertThat(updatedGetResponse.getBody().discount()).isEqualTo(20.0);
 
-        // 6. Verify Kafka message for UPDATED discount
-        DiscountChangesDto secondMessage = kafkaMessages.poll(10, TimeUnit.SECONDS);
-        assertThat(secondMessage).isNotNull();
+        // 6. Verify Redis message for UPDATED discount
+        verify(redisTemplate, atLeastOnce()).convertAndSend(eq(discountEvictionChannel), captor.capture());
+        DiscountChangesDto secondMessage = captor.getAllValues().get(captor.getAllValues().size() - 1);
         assertThat(secondMessage.productId()).isEqualTo(101L);
         assertThat(secondMessage.newDiscount()).isEqualTo(20.0);
         assertThat(secondMessage.prevDiscount()).isEqualTo(15.5);
