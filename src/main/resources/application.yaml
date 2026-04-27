@@ -2,7 +2,7 @@ spring:
   application:
     name: discount
   datasource:
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/micr-synch}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/micr-db}
     username: ${DB_USERNAME:qwe}
     password: ${DB_PASSWORD:qwe}
     driver-class-name: org.postgresql.Driver
@@ -10,6 +10,7 @@ spring:
     url: ${spring.datasource.url}
     user: ${spring.datasource.username}
     password: ${spring.datasource.password}
+    default-schema: discount_schema
   data:
     redis:
       host: ${REDIS_HOST:localhost}
