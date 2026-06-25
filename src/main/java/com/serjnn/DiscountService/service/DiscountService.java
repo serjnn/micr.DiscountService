@@ -22,9 +22,6 @@ public class DiscountService {
     private final DiscountRepository discountRepository;
     private final KafkaSender kafkaSender;
 
-    @Value("${spring.kafka.topic.discount-changes}")
-    private String discountChangesTopic;
-
     public void addDiscounts(List<DiscountRequest> requests) {
         log.info("Starting processing {} discount requests", requests.size());
         for (DiscountRequest request : requests) {
@@ -60,7 +57,7 @@ public class DiscountService {
 
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
         log.debug("Sending discount change event to Kafka: {}", discountChangesDto);
-        kafkaSender.sendNewDiscount(discountChangesTopic, discountChangesDto);
+        kafkaSender.sendDiscountChanges(discountChangesDto);
     }
 
     public Optional<DiscountResponse> findByProductId(long productId) {

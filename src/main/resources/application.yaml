@@ -21,9 +21,6 @@ spring:
     topic:
       discount-changes: ${KAFKA_TOPIC_DISCOUNT_CHANGES:discountChangesTopic}
       partitions: ${KAFKA_TOPIC_PARTITIONS:3}
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     listener:
       observation-enabled: true
     template:
