@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +17,7 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/discounts")
@@ -28,6 +30,7 @@ public class DiscountController {
     @Operation(summary = "Get all discounts", description = "Retrieve a list of all active product discounts")
     @ApiResponse(responseCode = "200", description = "Successfully retrieved discounts list")
     public Flux<DiscountResponse> getAll() {
+        log.info("Request received: Get all discounts");
         return discountService.findAll();
     }
 
@@ -37,6 +40,7 @@ public class DiscountController {
     @ApiResponse(responseCode = "201", description = "Discounts successfully created/updated")
     @ApiResponse(responseCode = "400", description = "Invalid input payload")
     public Mono<Void> add(@Valid @RequestBody List<DiscountRequest> discountRequests) {
+        log.info("Request received: Add discounts: {}", discountRequests);
         return discountService.addDiscounts(discountRequests);
     }
 
@@ -45,6 +49,7 @@ public class DiscountController {
     @ApiResponse(responseCode = "200", description = "Discount found")
     @ApiResponse(responseCode = "404", description = "Discount not found for the given product ID")
     public Mono<ResponseEntity<DiscountResponse>> byProductId(@PathVariable("productId") long productId) {
+        log.info("Request received: Get discount by product ID: {}", productId);
         return discountService.findByProductId(productId)
                 .map(ResponseEntity::ok)
                 .defaultIfEmpty(ResponseEntity.notFound().build());
