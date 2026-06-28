@@ -1,4 +1,4 @@
-package com.serjnn.DiscountService.kafka;
+package com.serjnn.DiscountService.kafka.producer;
 
 import com.serjnn.DiscountService.dto.DiscountChangesDto;
 import org.apache.kafka.clients.admin.NewTopic;
@@ -26,7 +26,6 @@ public class KafkaProducerConfiguration {
                 build();
     }
 
-
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
 
@@ -36,7 +35,7 @@ public class KafkaProducerConfiguration {
         configProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
         configProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         configProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
-        configProps.put(ProducerConfig.ACKS_CONFIG, "1");
+        configProps.put(ProducerConfig.ACKS_CONFIG, "all");
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
