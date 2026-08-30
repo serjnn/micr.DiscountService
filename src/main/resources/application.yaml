@@ -18,6 +18,13 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
+    producer:
+      acks: all
+      retries: 2147483647
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 5
+        delivery.timeout.ms: 120000
     topic:
       discount-changes: ${KAFKA_TOPIC_DISCOUNT_CHANGES:discountChangesTopic}
       partitions: ${KAFKA_TOPIC_PARTITIONS:3}
