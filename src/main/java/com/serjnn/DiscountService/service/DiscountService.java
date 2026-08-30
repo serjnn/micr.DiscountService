@@ -3,6 +3,7 @@ package com.serjnn.DiscountService.service;
 import com.serjnn.DiscountService.dto.DiscountChangesDto;
 import com.serjnn.DiscountService.dto.DiscountRequest;
 import com.serjnn.DiscountService.dto.DiscountResponse;
+import com.serjnn.DiscountService.dto.PageResponse;
 import com.serjnn.DiscountService.kafka.KafkaSender;
 import com.serjnn.DiscountService.model.DiscountEntity;
 import com.serjnn.DiscountService.repository.DiscountRepository;
@@ -114,5 +115,15 @@ public class DiscountService {
                 .toList();
         log.debug("Found {} discounts", discounts.size());
         return discounts;
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<DiscountResponse> getDiscounts(int page, int size) {
+        log.debug("Fetching discounts page {} size {}", page, size);
+        List<DiscountResponse> content = discountRepository.findAll(page, size).stream()
+                .map(entity -> new DiscountResponse(entity.productId(), entity.discount()))
+                .toList();
+        long total = discountRepository.count();
+        return PageResponse.of(content, page, size, total);
     }
 }

@@ -25,8 +25,20 @@ public class DiscountRepository {
     private final NamedParameterJdbcTemplate namedParameterJdbcTemplate;
 
     public List<DiscountEntity> findAll() {
-        String sql = "SELECT * FROM discount_entity";
+        String sql = "SELECT * FROM discount_entity ORDER BY product_id ASC";
         return jdbcTemplate.query(sql, new DataClassRowMapper<>(DiscountEntity.class));
+    }
+
+    public List<DiscountEntity> findAll(int page, int size) {
+        int offset = Math.max(0, page) * Math.max(1, size);
+        String sql = "SELECT * FROM discount_entity ORDER BY product_id ASC LIMIT ? OFFSET ?";
+        return jdbcTemplate.query(sql, new DataClassRowMapper<>(DiscountEntity.class), size, offset);
+    }
+
+    public long count() {
+        String sql = "SELECT COUNT(*) FROM discount_entity";
+        Long total = jdbcTemplate.queryForObject(sql, Long.class);
+        return total != null ? total : 0L;
     }
 
     public void save(DiscountEntity discountEntity) {

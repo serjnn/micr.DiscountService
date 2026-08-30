@@ -3,6 +3,7 @@ package com.serjnn.DiscountService;
 import com.serjnn.DiscountService.dto.DiscountChangesDto;
 import com.serjnn.DiscountService.dto.DiscountRequest;
 import com.serjnn.DiscountService.dto.DiscountResponse;
+import com.serjnn.DiscountService.dto.PageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -170,5 +171,42 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         assertThat(kafkaMessage).isNotNull();
         assertThat(kafkaMessage.productId()).isEqualTo(501L);
         assertThat(kafkaMessage.newDiscount()).isEqualByComparingTo(new BigDecimal("25.00"));
+    }
+
+    @Test
+    void shouldReturn400WhenValidationFailsOnInvalidDiscount() {
+        // Discount > 100%
+        DiscountRequest invalidReq = new DiscountRequest(601L, new BigDecimal("150.00"));
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/discounts", List.of(invalidReq), String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody()).contains("Validation Failed");
+    }
+
+    @Test
+    void shouldReturn400WhenBatchListIsEmpty() {
+        ResponseEntity<String> response = restTemplate.postForEntity("/api/v1/discounts", List.of(), String.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void shouldGetPagedDiscountsCorrectly() {
+        for (int i = 1; i <= 5; i++) {
+            DiscountRequest req = new DiscountRequest((long) (700 + i), new BigDecimal("10.00"));
+            restTemplate.postForEntity("/api/v1/discounts", List.of(req), Void.class);
+        }
+
+        ResponseEntity<PageResponse<DiscountResponse>> response = restTemplate.exchange(
+                "/api/v1/discounts/paged?page=0&size=2",
+                HttpMethod.GET,
+                null,
+                new ParameterizedTypeReference<PageResponse<DiscountResponse>>() {}
+        );
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().content()).hasSize(2);
+        assertThat(response.getBody().totalElements()).isEqualTo(5);
+        assertThat(response.getBody().totalPages()).isEqualTo(3);
+        assertThat(response.getBody().isFirst()).isTrue();
     }
 }
