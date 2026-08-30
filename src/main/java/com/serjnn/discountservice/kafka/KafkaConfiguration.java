@@ -1,6 +1,6 @@
-package com.serjnn.DiscountService.kafka;
+package com.serjnn.discountservice.kafka;
 
-import com.serjnn.DiscountService.dto.DiscountChangesDto;
+import com.serjnn.discountservice.dto.DiscountChangesDto;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -57,8 +57,8 @@ public class KafkaConfiguration {
         }
         consumerProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         consumerProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
-        consumerProperties.put(JsonDeserializer.TRUSTED_PACKAGES, "com.serjnn.DiscountService.dto");
-        consumerProperties.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.serjnn.DiscountService.dto.DiscountChangesDto");
+        consumerProperties.put(JsonDeserializer.TRUSTED_PACKAGES, "com.serjnn.discountservice.dto");
+        consumerProperties.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.serjnn.discountservice.dto.DiscountChangesDto");
         return new DefaultKafkaConsumerFactory<>(consumerProperties);
     }
 

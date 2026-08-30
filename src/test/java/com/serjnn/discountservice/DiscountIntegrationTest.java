@@ -1,9 +1,9 @@
-package com.serjnn.DiscountService;
+package com.serjnn.discountservice;
 
-import com.serjnn.DiscountService.dto.DiscountChangesDto;
-import com.serjnn.DiscountService.dto.DiscountRequest;
-import com.serjnn.DiscountService.dto.DiscountResponse;
-import com.serjnn.DiscountService.dto.PageResponse;
+import com.serjnn.discountservice.dto.DiscountChangesDto;
+import com.serjnn.discountservice.dto.DiscountRequest;
+import com.serjnn.discountservice.dto.DiscountResponse;
+import com.serjnn.discountservice.dto.PageResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

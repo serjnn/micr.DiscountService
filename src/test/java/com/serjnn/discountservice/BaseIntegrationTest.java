@@ -1,4 +1,4 @@
-package com.serjnn.DiscountService;
+package com.serjnn.discountservice;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;

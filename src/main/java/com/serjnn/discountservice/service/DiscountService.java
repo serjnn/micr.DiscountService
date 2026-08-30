@@ -1,12 +1,13 @@
-package com.serjnn.DiscountService.service;
+package com.serjnn.discountservice.service;
 
-import com.serjnn.DiscountService.dto.DiscountChangesDto;
-import com.serjnn.DiscountService.dto.DiscountRequest;
-import com.serjnn.DiscountService.dto.DiscountResponse;
-import com.serjnn.DiscountService.dto.PageResponse;
-import com.serjnn.DiscountService.kafka.KafkaSender;
-import com.serjnn.DiscountService.model.DiscountEntity;
-import com.serjnn.DiscountService.repository.DiscountRepository;
+import com.serjnn.discountservice.dto.DiscountChangesDto;
+import com.serjnn.discountservice.dto.DiscountRequest;
+import com.serjnn.discountservice.dto.DiscountResponse;
+import com.serjnn.discountservice.dto.PageResponse;
+import com.serjnn.discountservice.kafka.KafkaSender;
+import com.serjnn.discountservice.mapper.DiscountMapper;
+import com.serjnn.discountservice.model.DiscountEntity;
+import com.serjnn.discountservice.repository.DiscountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class DiscountService {
 
     private final DiscountRepository discountRepository;
     private final KafkaSender kafkaSender;
+    private final DiscountMapper discountMapper;
 
     @Transactional
     public void addDiscounts(List<DiscountRequest> requests) {
@@ -101,18 +103,13 @@ public class DiscountService {
     public Optional<DiscountResponse> findByProductId(long productId) {
         log.debug("Searching for discount for product id: {}", productId);
         return discountRepository.findByProductId(productId)
-                .map(entity -> {
-                    log.debug("Discount found for product id: {}", productId);
-                    return new DiscountResponse(entity.productId(), entity.discount());
-                });
+                .map(discountMapper::toResponse);
     }
 
     @Transactional(readOnly = true)
     public List<DiscountResponse> getAllDiscounts() {
         log.debug("Fetching all discounts from repository");
-        List<DiscountResponse> discounts = discountRepository.findAll().stream()
-                .map(entity -> new DiscountResponse(entity.productId(), entity.discount()))
-                .toList();
+        List<DiscountResponse> discounts = discountMapper.toResponseList(discountRepository.findAll());
         log.debug("Found {} discounts", discounts.size());
         return discounts;
     }
@@ -120,9 +117,7 @@ public class DiscountService {
     @Transactional(readOnly = true)
     public PageResponse<DiscountResponse> getDiscounts(int page, int size) {
         log.debug("Fetching discounts page {} size {}", page, size);
-        List<DiscountResponse> content = discountRepository.findAll(page, size).stream()
-                .map(entity -> new DiscountResponse(entity.productId(), entity.discount()))
-                .toList();
+        List<DiscountResponse> content = discountMapper.toResponseList(discountRepository.findAll(page, size));
         long total = discountRepository.count();
         return PageResponse.of(content, page, size, total);
     }

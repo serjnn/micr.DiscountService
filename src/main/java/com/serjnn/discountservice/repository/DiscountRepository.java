@@ -1,7 +1,7 @@
-package com.serjnn.DiscountService.repository;
+package com.serjnn.discountservice.repository;
 
-import com.serjnn.DiscountService.dto.DiscountRequest;
-import com.serjnn.DiscountService.model.DiscountEntity;
+import com.serjnn.discountservice.dto.DiscountRequest;
+import com.serjnn.discountservice.model.DiscountEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.DataClassRowMapper;
@@ -42,7 +42,7 @@ public class DiscountRepository {
     }
 
     public void save(DiscountEntity discountEntity) {
-        String sql = "INSERT INTO discount_entity (product_id, discount) VALUES (?, ?)";
+        String sql = "INSERT INTO discount_entity (product_id, discount, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
         jdbcTemplate.update(sql, discountEntity.productId(), discountEntity.discount());
     }
 
@@ -66,15 +66,17 @@ public class DiscountRepository {
     }
 
     public void update(DiscountEntity discountEntity) {
-        String sql = "UPDATE discount_entity SET discount = ? WHERE product_id = ?";
+        String sql = "UPDATE discount_entity SET discount = ?, updated_at = NOW() WHERE product_id = ?";
         jdbcTemplate.update(sql, discountEntity.discount(), discountEntity.productId());
     }
 
     public void upsert(long productId, BigDecimal discount) {
         String sql = """
-                INSERT INTO discount_entity (product_id, discount)
-                VALUES (?, ?)
-                ON CONFLICT (product_id) DO UPDATE SET discount = EXCLUDED.discount
+                INSERT INTO discount_entity (product_id, discount, created_at, updated_at)
+                VALUES (?, ?, NOW(), NOW())
+                ON CONFLICT (product_id) DO UPDATE
+                SET discount = EXCLUDED.discount,
+                    updated_at = NOW()
                 """;
         jdbcTemplate.update(sql, productId, discount);
     }
@@ -84,9 +86,11 @@ public class DiscountRepository {
             return;
         }
         String sql = """
-                INSERT INTO discount_entity (product_id, discount)
-                VALUES (?, ?)
-                ON CONFLICT (product_id) DO UPDATE SET discount = EXCLUDED.discount
+                INSERT INTO discount_entity (product_id, discount, created_at, updated_at)
+                VALUES (?, ?, NOW(), NOW())
+                ON CONFLICT (product_id) DO UPDATE
+                SET discount = EXCLUDED.discount,
+                    updated_at = NOW()
                 """;
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override

@@ -3,7 +3,7 @@ spring:
     enabled: true
   kafka:
     producer:
-      acks: 1
+      acks: all
     consumer:
       group-id: test-group
       auto-offset-reset: earliest

@@ -1,4 +1,4 @@
-package com.serjnn.DiscountService.exception;
+package com.serjnn.discountservice.exception;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;

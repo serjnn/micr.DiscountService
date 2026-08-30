@@ -1,4 +1,4 @@
-package com.serjnn.DiscountService.exception;
+package com.serjnn.discountservice.exception;
 
 public class DiscountNotFoundException extends RuntimeException {
 
