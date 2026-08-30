@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discount-service-config
+  labels:
+    app: discount-service
+data:
+  DB_URL: "jdbc:postgresql://postgres-service:5432/micr-db?currentSchema=discount_schema"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  EUREKA_SERVER_URL: "http://eureka-service:8761/eureka/"
+  ZIPKIN_URL: "http://zipkin-service:9411/api/v2/spans"
+  SERVER_PORT: "7005"
