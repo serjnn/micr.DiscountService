@@ -11,3 +11,11 @@ spring:
 eureka:
   client:
     enabled: false
+
+outbox:
+  scheduler:
+    interval-ms: 100
+    batch-size: 50
+    max-retries: 3
+    publish-timeout-ms: 5000
+

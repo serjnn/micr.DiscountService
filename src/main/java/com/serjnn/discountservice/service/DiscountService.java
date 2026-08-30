@@ -1,12 +1,15 @@
 package com.serjnn.discountservice.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.serjnn.discountservice.dto.DiscountChangesDto;
 import com.serjnn.discountservice.dto.DiscountRequest;
 import com.serjnn.discountservice.dto.DiscountResponse;
 import com.serjnn.discountservice.dto.PageResponse;
-import com.serjnn.discountservice.kafka.KafkaSender;
 import com.serjnn.discountservice.mapper.DiscountMapper;
 import com.serjnn.discountservice.model.DiscountEntity;
+import com.serjnn.discountservice.outbox.OutboxEvent;
+import com.serjnn.discountservice.outbox.OutboxRepository;
 import com.serjnn.discountservice.repository.DiscountRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,8 +30,9 @@ import java.util.stream.Collectors;
 public class DiscountService {
 
     private final DiscountRepository discountRepository;
-    private final KafkaSender kafkaSender;
+    private final OutboxRepository outboxRepository;
     private final DiscountMapper discountMapper;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void addDiscounts(List<DiscountRequest> requests) {
@@ -53,17 +58,20 @@ public class DiscountService {
         // Atomic batch upsert
         discountRepository.batchUpsert(uniqueRequests);
 
-        // Publish events for each updated/created discount
+        // Prepare transactional outbox events
+        List<OutboxEvent> outboxEvents = new ArrayList<>();
         for (DiscountRequest request : uniqueRequests) {
             long productId = request.productId();
             BigDecimal newDiscount = request.discount();
             BigDecimal prevDiscount = existingDiscounts.getOrDefault(productId, BigDecimal.ZERO);
 
             log.info("Processed discount for product {}: prev={}, new={}", productId, prevDiscount, newDiscount);
-            sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, prevDiscount));
+            DiscountChangesDto changesDto = new DiscountChangesDto(productId, newDiscount, prevDiscount);
+            outboxEvents.add(createOutboxEvent(changesDto));
         }
 
-        log.info("Finished processing {} discount requests", uniqueRequests.size());
+        outboxRepository.saveBatch(outboxEvents);
+        log.info("Finished processing {} discount requests and saved {} outbox events", uniqueRequests.size(), outboxEvents.size());
     }
 
     @Transactional
@@ -77,7 +85,8 @@ public class DiscountService {
         discountRepository.upsert(productId, newDiscount);
         log.info("Processed single discount for product {}: prev={}, new={}", productId, prevDiscount, newDiscount);
 
-        sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, prevDiscount));
+        DiscountChangesDto changesDto = new DiscountChangesDto(productId, newDiscount, prevDiscount);
+        outboxRepository.save(createOutboxEvent(changesDto));
     }
 
     @Transactional
@@ -94,9 +103,18 @@ public class DiscountService {
         return true;
     }
 
-    private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
-        log.debug("Sending discount change event to Kafka: {}", discountChangesDto);
-        kafkaSender.sendDiscountChanges(discountChangesDto);
+    private OutboxEvent createOutboxEvent(DiscountChangesDto changesDto) {
+        try {
+            String payload = objectMapper.writeValueAsString(changesDto);
+            return OutboxEvent.pending(
+                    "PRODUCT_DISCOUNT",
+                    String.valueOf(changesDto.productId()),
+                    "DISCOUNT_CHANGED",
+                    payload
+            );
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize discount changes to JSON", e);
+        }
     }
 
     @Transactional(readOnly = true)

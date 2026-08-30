@@ -23,7 +23,7 @@ public class KafkaSender {
         this.topicName = topicName;
     }
 
-    public void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
+    public CompletableFuture<SendResult<String, DiscountChangesDto>> sendDiscountChanges(DiscountChangesDto discountChangesDto) {
         String key = String.valueOf(discountChangesDto.productId());
         log.info("Sending discount changes with key {} to topic {}: {}", key, topicName, discountChangesDto);
         CompletableFuture<SendResult<String, DiscountChangesDto>> future = kafkaTemplate.send(topicName, key, discountChangesDto);
@@ -36,5 +36,10 @@ public class KafkaSender {
                         discountChangesDto.productId(), topicName, ex);
             }
         });
+        return future;
+    }
+
+    public void sendDiscountChangesSync(DiscountChangesDto discountChangesDto, long timeoutMs) throws Exception {
+        sendDiscountChanges(discountChangesDto).get(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 }

@@ -17,8 +17,11 @@ graph TD
     DC -->|DTO| DS[DiscountService]
     DS -->|MapStruct| DM[DiscountMapper]
     DS -->|Atomic Batch Upsert| DR[DiscountRepository]
+    DS -->|Atomic Outbox Insert| OR[OutboxRepository]
     DR -->|JDBC / HikariCP| PG[(PostgreSQL Database)]
-    DS -->|Ordered Key: productId| KS[KafkaSender]
+    OR -->|Table: outbox_events| PG
+    OS[OutboxScheduler] -->|FOR UPDATE SKIP LOCKED| OR
+    OS -->|Ordered Key: productId| KS[KafkaSender]
     KS -->|discountChangesTopic| KB[[Apache Kafka]]
     DS -->|Register / Heartbeat| EU[Netflix Eureka]
     DC -->|Prometheus Metrics| PR[Prometheus / Grafana]
@@ -29,6 +32,8 @@ graph TD
 
 ## 🚀 Key Features
 
+- **Transactional Outbox Pattern**: Eliminates dual-write anomalies by writing domain changes and Kafka events within the same PostgreSQL transaction.
+- **Concurrent Non-Blocking Poller**: Scheduled worker using PostgreSQL `FOR UPDATE SKIP LOCKED` for lock-free parallel event publishing across instances.
 - **Financial Decimal Precision**: Uses `BigDecimal` and PostgreSQL `NUMERIC(10, 2)` throughout all layers to avoid floating-point inaccuracies.
 - **Ordered Kafka Streaming**: Uses `productId` as Kafka message key, guaranteeing strict partition-level ordering for each product.
 - **Idempotent Kafka Producer**: Fully configured with `enable.idempotence=true`, `acks=all`, and bounded in-flight requests.
@@ -38,6 +43,7 @@ graph TD
 - **Interactive Documentation**: OpenAPI 3 / Swagger UI integrated out-of-the-box.
 - **Enterprise Observability**: Distributed tracing with Micrometer Tracing & Zipkin, metrics via Prometheus, and Kubernetes liveness/readiness probes.
 - **Production-Ready Containerization**: Hardened multi-stage non-root Dockerfile, `docker-compose.yml`, and Kubernetes manifests in `k8s/`.
+
 
 ---
 

@@ -81,3 +81,11 @@ logging:
     root: INFO
     com.serjnn.discountservice: DEBUG
 
+outbox:
+  scheduler:
+    interval-ms: 500
+    batch-size: 50
+    max-retries: 5
+    publish-timeout-ms: 5000
+
+

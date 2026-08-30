@@ -48,13 +48,12 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 ## ⚡ Phase 2: Distributed Reliability & Resilience (P1)
 
 ### 2.1 Transactional Outbox Pattern (Dual-Write Prevention)
-- [ ] **Implement Outbox Table**: Create Flyway migration for `outbox_events` table (`id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload`, `status`, `created_at`, `processed_at`).
-- [ ] **Transactional Outbox Writer**: In the same database transaction where discounts are saved, insert the event into `outbox_events`.
-- [ ] **Outbox Relay / Publisher**:
-  - Option A: Scheduled polling worker with ShedLock / Spring Task (`@Scheduled`).
-  - Option B: Spring Modulith / `@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)`.
-  - Option C: Debezium CDC capturing WAL changes directly to Kafka.
-  - *Current issue:* Direct Kafka publishing inside the DB loop causes silent data desynchronization if DB commits fail or Kafka is unreachable.
+- [x] **Implement Outbox Table**: Created Flyway migration `V2__outbox_events.sql` (`id`, `aggregate_type`, `aggregate_id`, `event_type`, `payload`, `status`, `retry_count`, `error_message`, `created_at`, `processed_at`) with partial index on `(status, created_at) WHERE status = 'PENDING'`.
+- [x] **Transactional Outbox Writer**: In `DiscountService`, atomic database operations write `OutboxEvent` records into `outbox_events` in the exact same transaction as the discounts table.
+- [x] **Outbox Relay / Publisher (`FOR UPDATE SKIP LOCKED`)**:
+  - Implemented `OutboxScheduler` with `@Scheduled` polling and `FOR UPDATE SKIP LOCKED` query in `OutboxRepository`.
+  - Non-blocking row-level lock concurrency across multiple instances.
+  - Synchronous broker delivery acknowledgment before marking status as `PROCESSED`, with retry count handling.
 
 ### 2.2 Kafka Producer Reliability Configuration
 - [x] **Configure Producer Resilience Properties** in `application.yaml`:

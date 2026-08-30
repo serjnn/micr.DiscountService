@@ -36,7 +36,7 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.execute("TRUNCATE TABLE discount_entity RESTART IDENTITY CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE discount_entity, outbox_events RESTART IDENTITY CASCADE");
         kafkaMessages.clear();
     }
 
@@ -209,4 +209,22 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         assertThat(response.getBody().totalPages()).isEqualTo(3);
         assertThat(response.getBody().isFirst()).isTrue();
     }
+
+    @Test
+    void shouldSaveOutboxEventsAndProcessThemViaScheduler() {
+        DiscountRequest request = new DiscountRequest(801L, new BigDecimal("45.00"));
+        ResponseEntity<Void> response = restTemplate.postForEntity("/api/v1/discounts", List.of(request), Void.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        org.awaitility.Awaitility.await()
+                .atMost(5, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    Integer processedCount = jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM outbox_events WHERE aggregate_id = '801' AND status = 'PROCESSED'",
+                            Integer.class
+                    );
+                    assertThat(processedCount).isEqualTo(1);
+                });
+    }
 }
+
