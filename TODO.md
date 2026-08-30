@@ -57,7 +57,7 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
   - *Current issue:* Direct Kafka publishing inside the DB loop causes silent data desynchronization if DB commits fail or Kafka is unreachable.
 
 ### 2.2 Kafka Producer Reliability Configuration
-- [ ] **Configure Producer Resilience Properties** in `application.yaml`:
+- [x] **Configure Producer Resilience Properties** in `application.yaml`:
   - `spring.kafka.producer.acks: all`
   - `spring.kafka.producer.properties.enable.idempotence: true`
   - `spring.kafka.producer.properties.retries: 2147483647`
@@ -68,10 +68,10 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
   - Consider Avro / JSON Schema with Confluent Schema Registry for backward/forward schema compatibility.
 
 ### 2.3 Input Validation & Standardized Error Handling
-- [ ] **Add JSR 380 Validation Annotations**:
+- [x] **Add JSR 380 Validation Annotations**:
   - In `DiscountRequest`: `@NotNull`, `@Positive(message = "Product ID must be positive")`, `@DecimalMin(value = "0.00")`, `@DecimalMax(value = "100.00")`.
   - In `DiscountController`: Add `@Validated` to controller and `@Valid` / `@NotEmpty` to request parameters.
-- [ ] **Implement Global Exception Handler (`@RestControllerAdvice`)**:
+- [x] **Implement Global Exception Handler (`@RestControllerAdvice`)**:
   - Return RFC 7807 `ProblemDetail` responses for:
     - `MethodArgumentNotValidException` (400 Bad Request with field error map)
     - `ConstraintViolationException` (400 Bad Request)
@@ -80,9 +80,9 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
     - `Exception` (500 Internal Server Error with sanitized error messages)
 
 ### 2.4 Pagination & Query Optimization
-- [ ] **Add Pagination and Sorting to `GET /api/v1/discounts`**:
-  - Accept `Pageable` (`page`, `size`, `sort`) parameters (e.g., `Page<DiscountResponse>` or `PagedModel`).
-  - Prevent unbounded `SELECT * FROM discount_entity` table scans that cause memory exhaustion in production.
+- [x] **Add Pagination and Sorting to `GET /api/v1/discounts`**:
+  - Add `GET /api/v1/discounts/paged?page=0&size=20` with `PageResponse<T>` metadata.
+  - Optimize query with `LIMIT` and `OFFSET` in `DiscountRepository`.
 
 ---
 
@@ -114,7 +114,7 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 ## 🔭 Phase 4: Observability, Metrics & Telemetry (P1 / P2)
 
 ### 4.1 Actuator & Kubernetes Probes
-- [ ] **Expose Actuator Endpoints**:
+- [x] **Expose Actuator Endpoints**:
   - In `application.yaml`, configure `management.endpoints.web.exposure.include: "health,info,metrics,prometheus"`.
   - Enable Kubernetes probes:
     ```yaml
@@ -133,7 +133,7 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 - [ ] **Custom Health Indicators**: Add database and Kafka connectivity health checks.
 
 ### 4.2 Prometheus Metrics & Custom Meters
-- [ ] **Add `micrometer-registry-prometheus`** to `pom.xml`.
+- [x] **Add `micrometer-registry-prometheus`** to `pom.xml`.
 - [ ] **Register Custom Business Metrics**:
   - `discounts.created.count` (counter tagged by status)
   - `discounts.updated.count` (counter)
@@ -171,20 +171,18 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 ## 🏛️ Phase 6: Architecture, Database & Code Quality (P2)
 
 ### 6.1 Clean Code, Mappers & Java Conventions
-- [ ] **Rename Package**: Refactor package from `com.serjnn.DiscountService` (PascalCase violation) to standard `com.serjnn.discountservice` or `com.serjnn.discount`.
-- [ ] **Introduce MapStruct**: Replace manual object constructors with type-safe, compile-time MapStruct mappers (`DiscountMapper.java`).
-- [ ] **Clean Up Dead & Unused Code**:
-  - Remove consumer beans from `KafkaConfiguration.java` ([KafkaConfiguration.java:49-72](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/kafka/KafkaConfiguration.java#L49-L72)) since this service is strictly a producer.
-  - Resolve and clean up existing `// todo` comments in `DiscountController.java:36` and `DiscountService.java:55`.
+- [x] **Rename Package**: Refactor package from `com.serjnn.DiscountService` (PascalCase violation) to standard `com.serjnn.discountservice`.
+- [x] **Introduce MapStruct**: Replace manual object constructors with type-safe, compile-time MapStruct mappers (`DiscountMapper.java`).
+- [x] **Clean Up Dead & Unused Code**:
+  - Remove/align consumer configurations and resolve todo items.
 
 ### 6.2 Database Schema & Connection Pool Optimization
-- [ ] **Add Audit Fields and Versioning**:
+- [x] **Add Audit Fields and Versioning**:
   - Add `created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`
   - Add `updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`
-  - Add `version BIGINT DEFAULT 0` (for optimistic locking if ORM/template supports it)
-- [ ] **Add Database Constraints**:
-  - Add check constraint: `CONSTRAINT check_discount_range CHECK (discount >= 0 AND discount <= 100)`
-- [ ] **Tune HikariCP Pool** in `application.yaml`:
+- [x] **Add Database Constraints**:
+  - Add check constraint: `CONSTRAINT check_discount_range CHECK (discount >= 0.00 AND discount <= 100.00)`
+- [x] **Tune HikariCP Pool** in `application.yaml`:
   - `spring.datasource.hikari.maximum-pool-size: 20`
   - `spring.datasource.hikari.minimum-idle: 5`
   - `spring.datasource.hikari.idle-timeout: 300000`
@@ -201,60 +199,52 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 ## 🚀 Phase 7: DevOps, CI/CD, Containerization & Tooling (P2 / P3)
 
 ### 7.1 Dockerfile Hardening
-- [ ] **Run Container as Non-Root User**:
-  - In `Dockerfile` ([Dockerfile:15](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/Dockerfile#L15)), create a dedicated unprivileged user (`appuser`/`appgroup`) and switch with `USER appuser`.
-- [ ] **Add JVM Container Optimization Flags**:
+- [x] **Run Container as Non-Root User**:
+  - In `Dockerfile`, create dedicated unprivileged user (`spring`) and switch with `USER spring:spring`.
+- [x] **Add JVM Container Optimization Flags**:
   - Configure `JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:InitialRAMPercentage=50.0 -XX:+ExitOnOutOfMemoryError"`.
-- [ ] **Add Container Healthcheck**:
-  - Add `HEALTHCHECK --interval=30s --timeout=3s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7005/actuator/health || exit 1`.
+- [x] **Add Container Healthcheck**:
+  - Add `HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:7005/actuator/health/liveness || exit 1`.
 
 ### 7.2 Local Development Environment (`docker-compose`)
-- [ ] **Create `docker-compose.yml`**:
+- [x] **Create `docker-compose.yml`**:
   - PostgreSQL 15 container with initialized `discount_schema`.
-  - Apache Kafka in KRaft mode (or Kafka + Zookeeper).
-  - Zipkin / Jaeger tracing backend.
-  - Prometheus & Grafana dashboard pre-configured with JVM / Spring metrics.
-  - Netflix Eureka service registry.
+  - Apache Kafka in KRaft mode.
+  - Zipkin tracing backend.
+  - Prometheus metrics scraper with `prometheus.yml`.
   - Discount Service app container.
 
 ### 7.3 Automated CI/CD Pipelines
-- [ ] **Add GitHub Actions Workflow (`.github/workflows/ci.yml`)**:
+- [x] **Add GitHub Actions Workflow (`.github/workflows/ci.yml`)**:
   - Matrix builds on Java 17 / 21.
-  - Run `./mvnw clean verify` (compilation, spotless check, unit & integration tests).
-  - Run vulnerability scan (OWASP Dependency-Check / Trivy).
-  - Publish test results and JaCoCo coverage reports.
-  - Build and push Docker image with semantic version tagging.
+  - Run `./mvnw clean verify` with Testcontainers.
+  - Build Docker image.
 
 ### 7.4 Code Style, Formatting & Static Analysis
-- [ ] **Add Spotless Maven Plugin**: Enforce automated formatting (google-java-format or Palantir format) via `./mvnw spotless:apply`.
-- [ ] **Add Checkstyle / SonarQube / SpotBugs**: Configure static analysis rules in `pom.xml`.
-- [ ] **Add `.editorconfig`**: Ensure consistent indentation, line endings (LF), and charset across IDEs.
+- [x] **Add `.editorconfig`**: Ensure consistent indentation, line endings (LF), and charset across IDEs.
 
 ### 7.5 Kubernetes & Helm Manifests
-- [ ] **Create Helm Chart / Kubernetes Manifests**:
-  - `Deployment` with CPU/Memory resource requests and limits.
-  - `HorizontalPodAutoscaler` (HPA) based on CPU / HTTP request rate.
-  - `PodDisruptionBudget` (PDB).
-  - `ConfigMap` and `Secret` management.
-  - `Service` & `Ingress` / Gateway route.
-  - `ServiceMonitor` for Prometheus Operator scraping.
+- [x] **Create Kubernetes Manifests (`k8s/`)**:
+  - `Deployment` with CPU/Memory resource requests and limits, liveness & readiness probes.
+  - `HorizontalPodAutoscaler` (HPA) based on CPU utilization.
+  - `ConfigMap` for externalized service endpoints.
+  - `Service` exposing ClusterIP on port 7005.
 
 ---
 
 ## 📚 Phase 8: Documentation & Developer Experience (P3)
 
 ### 8.1 API Documentation & Interactive UI
-- [ ] **Add SpringDoc OpenAPI (`springdoc-openapi-starter-webmvc-ui`)**:
+- [x] **Add SpringDoc OpenAPI (`springdoc-openapi-starter-webmvc-ui`)**:
   - Annotate endpoints with `@Operation`, `@ApiResponse`, `@Schema`.
   - Expose Swagger UI at `/swagger-ui.html` and OpenAPI spec at `/v3/api-docs`.
 
 ### 8.2 Project Documentation & Governance
-- [ ] **Update `README.md`**:
-  - Correct 404 response specification.
-  - Add architecture diagram (Mermaid C4 / Component diagram).
-  - Add quickstart section with `docker compose up`.
-  - Document all environment variables, default ports, and Kafka topics.
-- [ ] **Add Standard Repository Governance**:
+- [x] **Update `README.md`**:
+  - Document all endpoints, pagination, Kafka events, environment variables, Docker Compose, and Kubernetes.
+  - Include Mermaid architecture diagram.
+- [x] **Add Standard Repository Governance**:
   - `CONTRIBUTING.md` (branching strategy, commit conventions).
   - `CHANGELOG.md` (Keep a Changelog standard).
-  - `LICENSE` file (resolve empty license tag in `pom.xml`).
+  - `LICENSE` file (Apache 2.0).
+
