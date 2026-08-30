@@ -1,8 +1,10 @@
 package com.serjnn.DiscountService.dto;
 
+import java.math.BigDecimal;
+
 public record DiscountChangesDto(
         long productId,
-        double newDiscount,
-        double prevDiscount
+        BigDecimal newDiscount,
+        BigDecimal prevDiscount
 ) {
 }

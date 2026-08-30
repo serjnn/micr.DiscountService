@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,14 +27,14 @@ public class DiscountService {
         log.info("Starting processing {} discount requests", requests.size());
         for (DiscountRequest request : requests) {
             long productId = request.productId();
-            double newDiscount = request.discount();
+            BigDecimal newDiscount = request.discount();
             log.debug("Processing discount for product {}: {}", productId, newDiscount);
 
             Optional<DiscountEntity> existingOpt = discountRepository.findByProductId(productId);
 
             if (existingOpt.isPresent()) {
                 DiscountEntity existing = existingOpt.get();
-                double prevDiscount = existing.discount();
+                BigDecimal prevDiscount = existing.discount();
 
                 log.info("Found existing discount for product {}: prev={}, new={}", productId, prevDiscount, newDiscount);
 
@@ -47,12 +48,12 @@ public class DiscountService {
                 DiscountEntity newEntity = new DiscountEntity(null, productId, newDiscount);
                 discountRepository.save(newEntity);
 
-                sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, 0.0));
+                sendDiscountChanges(new DiscountChangesDto(productId, newDiscount, BigDecimal.ZERO));
                 log.info("Added new discount for product {}: {}", productId, newDiscount);
             }
         }
         log.info("Finished processing discount requests");
-    } // todo
+    }
 
 
     private void sendDiscountChanges(DiscountChangesDto discountChangesDto) {

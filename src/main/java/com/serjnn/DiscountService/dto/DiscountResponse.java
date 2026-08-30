@@ -1,7 +1,9 @@
 package com.serjnn.DiscountService.dto;
 
+import java.math.BigDecimal;
+
 public record DiscountResponse(
         long productId,
-        double discount
+        BigDecimal discount
 ) {
 }
