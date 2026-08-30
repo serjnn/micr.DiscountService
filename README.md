@@ -23,11 +23,13 @@ The **Discount Service** is a Spring Boot microservice responsible for managing 
 
 ### Base URL: `/api/v1/discounts`
 
-| Method | Endpoint | Description | Request Body | Response Body |
-|--------|----------|-------------|--------------|---------------|
-| `GET`  | `/`      | Get all discounts | None | `List<DiscountResponse>` |
-| `POST` | `/`      | Create/Update discounts | `List<DiscountRequest>` | `201 Created` |
-| `GET`  | `/{productId}` | Get discount for product | None | `DiscountResponse` or `404 Not Found` |
+| Method   | Endpoint        | Description                | Request Body            | Response Body                        |
+|----------|-----------------|----------------------------|-------------------------|--------------------------------------|
+| `GET`    | `/`             | Get all discounts          | None                    | `List<DiscountResponse>`             |
+| `POST`   | `/`             | Batch Create/Update        | `List<DiscountRequest>` | `201 Created`                        |
+| `PUT`    | `/{productId}`  | Single Create/Update       | `DiscountRequest`       | `200 OK`                             |
+| `GET`    | `/{productId}`  | Get discount for product   | None                    | `DiscountResponse` or `404 Not Found`|
+| `DELETE` | `/{productId}`  | Delete discount for product| None                    | `204 No Content` or `404 Not Found`  |
 
 ### Data Models
 
@@ -35,7 +37,7 @@ The **Discount Service** is a Spring Boot microservice responsible for managing 
 ```json
 {
   "productId": 123,
-  "discount": 15.5
+  "discount": 15.50
 }
 ```
 
@@ -43,7 +45,7 @@ The **Discount Service** is a Spring Boot microservice responsible for managing 
 
 ## Messaging (Kafka)
 
-The service acts as a **Producer**, sending updates to the following topic:
+The service acts as a **Producer**, sending updates to the following topic with **`productId` as the message key** for strict partition ordering:
 
 ### Topic: `discountChangesTopic`
 - **Partitions**: 3
@@ -54,11 +56,11 @@ The service acts as a **Producer**, sending updates to the following topic:
 ```json
 {
   "productId": 123,
-  "newDiscount": 15.5,
-  "prevDiscount": 10.0
+  "newDiscount": 15.50,
+  "prevDiscount": 10.00
 }
 ```
-*Note: For new discounts, `prevDiscount` will be `0.0`.*
+*Note: For new discounts, `prevDiscount` will be `0.00`.*
 
 ---
 

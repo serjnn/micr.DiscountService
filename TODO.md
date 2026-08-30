@@ -22,35 +22,26 @@ This document provides a comprehensive, actionable roadmap detailing every gap, 
 ## 🚨 Phase 1: Critical Fixes, Data Integrity & Correctness (P0)
 
 ### 1.1 HTTP Status Codes & REST API Corrections
-- [ ] **Fix 404 Not Found on missing discount**: In `DiscountController.getByProductId` ([DiscountController.java:48](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/controller/DiscountController.java#L48)), replace `ResponseEntity.status(200).build()` with standard `404 Not Found` (or throw `DiscountNotFoundException` handled by global advice). The README claims 404, but code returns 200 with empty body.
-- [ ] **Separate Single vs Bulk Endpoints**:
-  - `POST /api/v1/discounts` for single discount creation/update.
-  - `POST /api/v1/discounts/batch` or `PUT /api/v1/discounts/batch` for bulk operations.
-  - Return `201 Created` for new resources with `Location` header, `200 OK` for updates, `204 No Content` for deletions.
-- [ ] **Implement DELETE endpoint**: Add `DELETE /api/v1/discounts/{productId}` to support discount removal or expiration, emitting a deletion event to Kafka.
+- [x] **Fix 404 Not Found on missing discount**: In `DiscountController.getByProductId` ([DiscountController.java:48](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/controller/DiscountController.java#L48)), replace `ResponseEntity.status(200).build()` with standard `404 Not Found`.
+- [x] **Separate Single vs Bulk Endpoints**:
+  - `POST /api/v1/discounts` for batch discount creation/update.
+  - `PUT /api/v1/discounts/{productId}` for single discount update/upsert.
+  - Return `201 Created`, `200 OK`, `204 No Content` appropriately.
+- [x] **Implement DELETE endpoint**: Add `DELETE /api/v1/discounts/{productId}` to support discount removal.
 
 ### 1.2 Kafka Partition Key & Event Ordering
-- [ ] **Supply Message Key in Kafka Producer**: In `KafkaSender.sendDiscountChanges` ([KafkaSender.java:28](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/kafka/KafkaSender.java#L28)), pass `String.valueOf(discountChangesDto.productId())` as the Kafka message key.
-  - *Current issue:* Without a partition key, messages are round-robined across partitions, resulting in out-of-order event consumption by downstream services for the same product.
+- [x] **Supply Message Key in Kafka Producer**: In `KafkaSender.sendDiscountChanges` ([KafkaSender.java:28](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/kafka/KafkaSender.java#L28)), pass `String.valueOf(discountChangesDto.productId())` as the Kafka message key.
 
 ### 1.3 Concurrency, Transactions & Atomic Upserts
-- [ ] **Add `@Transactional` boundaries**: In `DiscountService.addDiscounts` ([DiscountService.java:25](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/DiscountService/service/DiscountService.java#L25)), add `@Transactional` to ensure atomicity across batch database operations. Add `@Transactional(readOnly = true)` to read methods.
-- [ ] **Eliminate Check-Then-Act Race Condition**: Replace `findByProductId` followed by conditional `save`/`update` in `DiscountService` with an atomic PostgreSQL upsert query in `DiscountRepository`:
-  ```sql
-  INSERT INTO discount_entity (product_id, discount)
-  VALUES (:productId, :discount)
-  ON CONFLICT (product_id) DO UPDATE
-  SET discount = EXCLUDED.discount
-  RETURNING (xmax = 0) AS is_inserted;
-  ```
-- [ ] **Fix Batch Performance (N+1 Query Elimination)**: Replace the sequential per-item loop (2 queries × N items) with `jdbcTemplate.batchUpdate()` or bulk multi-value SQL insert/update.
-- [ ] **Handle Duplicate Product IDs in Single Request**: Deduplicate incoming batch requests (e.g. using `Map<Long, DiscountRequest>` or preserving latest entry) to prevent self-conflicts within a single batch transaction.
+- [x] **Add `@Transactional` boundaries**: In `DiscountService`, add `@Transactional` to ensure atomicity across batch database operations. Add `@Transactional(readOnly = true)` to read methods.
+- [x] **Eliminate Check-Then-Act Race Condition**: Replace `findByProductId` followed by conditional `save`/`update` in `DiscountService` with an atomic PostgreSQL upsert query in `DiscountRepository`.
+- [x] **Fix Batch Performance (N+1 Query Elimination)**: Batch query existing discounts and perform `batchUpsert` with `PreparedStatement` batching.
+- [x] **Handle Duplicate Product IDs in Single Request**: Deduplicate incoming batch requests preserving latest entry to prevent self-conflicts within a single batch transaction.
 
 ### 1.4 Precision: Replace Floating Point with `BigDecimal`
-- [ ] **Migrate `double` to `BigDecimal`**:
-  - In `DiscountRequest`, `DiscountResponse`, `DiscountChangesDto`, and `DiscountEntity`, replace `double` with `BigDecimal` (or scaled integer / basis points).
-  - In `V1__init_schema.sql` ([V1__init_schema.sql:4](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/resources/db/migration/V1__init_schema.sql#L4)), alter `DOUBLE PRECISION` to `NUMERIC(5, 2)` (or `NUMERIC(10, 4)`).
-  - *Current issue:* IEEE 754 floating-point numbers cause precision loss and rounding anomalies (e.g., `15.5` represented as `15.500000000000002`).
+- [x] **Migrate `double` to `BigDecimal`**:
+  - In `DiscountRequest`, `DiscountResponse`, `DiscountChangesDto`, and `DiscountEntity`, replace `double` with `BigDecimal`.
+  - In `V1__init_schema.sql` and `schema.sql`, alter `DOUBLE PRECISION` to `NUMERIC(10, 2)`.
 
 ---
 
