@@ -33,7 +33,17 @@ public class DiscountController {
         log.info("Received request to create/update {} discounts", discountRequests.size());
         discountService.addDiscounts(discountRequests);
         log.info("Successfully processed discount create/update request");
-    } // todo why are we getting list, we need 201 or 200 if we updating
+    }
+
+    @PutMapping("/{productId}")
+    public ResponseEntity<Void> updateDiscount(
+            @PathVariable long productId,
+            @RequestBody DiscountRequest discountRequest) {
+        log.info("Received request to update discount for product id: {}", productId);
+        DiscountRequest request = new DiscountRequest(productId, discountRequest.discount());
+        discountService.addOrUpdateDiscount(request);
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/{productId}")
     public ResponseEntity<DiscountResponse> getByProductId(@PathVariable long productId) {
@@ -45,7 +55,19 @@ public class DiscountController {
                 })
                 .orElseGet(() -> {
                     log.warn("Discount not found for product id: {}", productId);
-                    return ResponseEntity.status(200).build();
+                    return ResponseEntity.notFound().build();
                 });
+    }
+
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteDiscount(@PathVariable long productId) {
+        log.info("Received request to delete discount for product id: {}", productId);
+        boolean deleted = discountService.deleteDiscount(productId);
+        if (deleted) {
+            log.info("Discount deleted for product id: {}", productId);
+            return ResponseEntity.noContent().build();
+        }
+        log.warn("Cannot delete non-existent discount for product id: {}", productId);
+        return ResponseEntity.notFound().build();
     }
 }

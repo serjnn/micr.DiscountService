@@ -100,4 +100,75 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         List<DiscountResponse> discounts = response.getBody();
         assertThat(discounts).extracting(DiscountResponse::productId).contains(201L, 202L);
     }
+
+    @Test
+    void shouldReturn404WhenDiscountNotFound() {
+        ResponseEntity<DiscountResponse> response = restTemplate.getForEntity("/api/v1/discounts/99999", DiscountResponse.class);
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void shouldUpdateDiscountViaPutAndEmitKafkaEvent() throws InterruptedException {
+        DiscountRequest putRequest = new DiscountRequest(301L, new BigDecimal("35.00"));
+        restTemplate.put("/api/v1/discounts/301", putRequest);
+
+        ResponseEntity<DiscountResponse> getResponse = restTemplate.getForEntity("/api/v1/discounts/301", DiscountResponse.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getResponse.getBody()).isNotNull();
+        assertThat(getResponse.getBody().productId()).isEqualTo(301L);
+        assertThat(getResponse.getBody().discount()).isEqualByComparingTo(new BigDecimal("35.00"));
+
+        DiscountChangesDto kafkaMessage = kafkaMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(kafkaMessage).isNotNull();
+        assertThat(kafkaMessage.productId()).isEqualTo(301L);
+        assertThat(kafkaMessage.newDiscount()).isEqualByComparingTo(new BigDecimal("35.00"));
+        assertThat(kafkaMessage.prevDiscount()).isEqualByComparingTo(BigDecimal.ZERO);
+    }
+
+    @Test
+    void shouldDeleteDiscountAndReturn404WhenNotFound() {
+        DiscountRequest request = new DiscountRequest(401L, new BigDecimal("12.50"));
+        restTemplate.postForEntity("/api/v1/discounts", List.of(request), Void.class);
+
+        // Delete existing discount
+        ResponseEntity<Void> deleteResponse = restTemplate.exchange(
+                "/api/v1/discounts/401",
+                HttpMethod.DELETE,
+                null,
+                Void.class
+        );
+        assertThat(deleteResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+        // Verify deleted
+        ResponseEntity<DiscountResponse> getResponse = restTemplate.getForEntity("/api/v1/discounts/401", DiscountResponse.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Deleting non-existent should return 404
+        ResponseEntity<Void> deleteNonExistentResponse = restTemplate.exchange(
+                "/api/v1/discounts/401",
+                HttpMethod.DELETE,
+                null,
+                Void.class
+        );
+        assertThat(deleteNonExistentResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    void shouldHandleBatchWithDuplicateProductIdsGracefully() throws InterruptedException {
+        DiscountRequest req1 = new DiscountRequest(501L, new BigDecimal("10.00"));
+        DiscountRequest req2 = new DiscountRequest(501L, new BigDecimal("25.00"));
+        ResponseEntity<Void> response = restTemplate.postForEntity("/api/v1/discounts", List.of(req1, req2), Void.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+
+        ResponseEntity<DiscountResponse> getResponse = restTemplate.getForEntity("/api/v1/discounts/501", DiscountResponse.class);
+        assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(getResponse.getBody()).isNotNull();
+        assertThat(getResponse.getBody().discount()).isEqualByComparingTo(new BigDecimal("25.00"));
+
+        DiscountChangesDto kafkaMessage = kafkaMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(kafkaMessage).isNotNull();
+        assertThat(kafkaMessage.productId()).isEqualTo(501L);
+        assertThat(kafkaMessage.newDiscount()).isEqualByComparingTo(new BigDecimal("25.00"));
+    }
 }
