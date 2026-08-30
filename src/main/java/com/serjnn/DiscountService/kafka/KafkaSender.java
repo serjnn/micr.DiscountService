@@ -24,8 +24,9 @@ public class KafkaSender {
     }
 
     public void sendDiscountChanges(DiscountChangesDto discountChangesDto) {
-        log.info("Sending discount changes to topic {}: {}", topicName, discountChangesDto);
-        CompletableFuture<SendResult<String, DiscountChangesDto>> future = kafkaTemplate.send(topicName, discountChangesDto);
+        String key = String.valueOf(discountChangesDto.productId());
+        log.info("Sending discount changes with key {} to topic {}: {}", key, topicName, discountChangesDto);
+        CompletableFuture<SendResult<String, DiscountChangesDto>> future = kafkaTemplate.send(topicName, key, discountChangesDto);
         future.whenComplete((result, ex) -> {
             if (ex == null) {
                 log.info("Successfully sent discount changes for product {} to topic {}", 
