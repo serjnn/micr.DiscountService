@@ -98,8 +98,12 @@ public class DiscountService {
             return false;
         }
 
+        BigDecimal prevDiscount = existingOpt.get().discount();
         discountRepository.deleteByProductId(productId);
-        log.info("Successfully deleted discount for product {}", productId);
+        log.info("Successfully deleted discount for product {}: prev={}", productId, prevDiscount);
+
+        DiscountChangesDto changesDto = new DiscountChangesDto(productId, BigDecimal.ZERO, prevDiscount);
+        outboxRepository.save(createOutboxEvent(changesDto));
         return true;
     }
 

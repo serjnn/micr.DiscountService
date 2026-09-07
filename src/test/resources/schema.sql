@@ -17,8 +17,9 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     retry_count INT NOT NULL DEFAULT 0,
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMP WITH TIME ZONE
+    processed_at TIMESTAMP WITH TIME ZONE,
+    next_retry_at TIMESTAMP WITH TIME ZONE
 );
 
-CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events (status, created_at) WHERE status = 'PENDING';
+CREATE INDEX IF NOT EXISTS idx_outbox_pending ON outbox_events (next_retry_at, created_at, id) WHERE status = 'PENDING';
 

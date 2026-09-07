@@ -18,4 +18,12 @@ outbox:
     batch-size: 50
     max-retries: 3
     publish-timeout-ms: 5000
+    lease-time-ms: 5000
+    initial-backoff-ms: 200
+    max-backoff-ms: 5000
+    backoff-multiplier: 2.0
+  cleanup:
+    cron: "0 0 2 * * *"
+    retention-days: 7
+
 

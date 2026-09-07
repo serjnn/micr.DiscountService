@@ -9,6 +9,9 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 @Slf4j
@@ -51,20 +54,27 @@ public class OutboxRepository {
         });
     }
 
-    public List<OutboxEvent> fetchAndLockPendingEvents(int limit) {
+    public List<OutboxEvent> claimPendingEvents(int limit, long leaseTimeMs) {
         String sql = """
-                SELECT id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, error_message, created_at, processed_at
-                FROM outbox_events
-                WHERE status = 'PENDING'
-                ORDER BY created_at ASC
-                LIMIT ?
-                FOR UPDATE SKIP LOCKED
+                UPDATE outbox_events
+                SET next_retry_at = ?
+                WHERE id IN (
+                    SELECT id
+                    FROM outbox_events
+                    WHERE status = 'PENDING'
+                      AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+                    ORDER BY created_at ASC, id ASC
+                    LIMIT ?
+                    FOR UPDATE SKIP LOCKED
+                )
+                RETURNING id, aggregate_type, aggregate_id, event_type, payload, status, retry_count, error_message, created_at, processed_at, next_retry_at
                 """;
-        return jdbcTemplate.query(sql, new DataClassRowMapper<>(OutboxEvent.class), limit);
+        Timestamp leaseExpiration = Timestamp.from(Instant.now().plusMillis(leaseTimeMs));
+        return jdbcTemplate.query(sql, new DataClassRowMapper<>(OutboxEvent.class), leaseExpiration, limit);
     }
 
     public void markAsProcessed(Long id) {
-        String sql = "UPDATE outbox_events SET status = 'PROCESSED', processed_at = NOW() WHERE id = ?";
+        String sql = "UPDATE outbox_events SET status = 'PROCESSED', processed_at = NOW(), error_message = NULL WHERE id = ?";
         jdbcTemplate.update(sql, id);
     }
 
@@ -72,7 +82,7 @@ public class OutboxRepository {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        String sql = "UPDATE outbox_events SET status = 'PROCESSED', processed_at = NOW() WHERE id = ?";
+        String sql = "UPDATE outbox_events SET status = 'PROCESSED', processed_at = NOW(), error_message = NULL WHERE id = ?";
         jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
@@ -86,14 +96,28 @@ public class OutboxRepository {
         });
     }
 
-    public void markAsFailed(Long id, String errorMessage, int maxRetries) {
+    public void markAsFailed(Long id, String errorMessage, int maxRetries, long backoffMs) {
         String sql = """
                 UPDATE outbox_events
                 SET retry_count = retry_count + 1,
                     error_message = ?,
+                    next_retry_at = ?,
                     status = CASE WHEN retry_count + 1 >= ? THEN 'FAILED' ELSE 'PENDING' END
                 WHERE id = ?
                 """;
-        jdbcTemplate.update(sql, errorMessage, maxRetries, id);
+        Timestamp nextRetry = Timestamp.from(Instant.now().plusMillis(backoffMs));
+        jdbcTemplate.update(sql, errorMessage, nextRetry, maxRetries, id);
+    }
+
+    public int deleteOldProcessedEvents(int olderThanDays) {
+        String sql = """
+                DELETE FROM outbox_events
+                WHERE status = 'PROCESSED'
+                  AND processed_at < ?
+                """;
+        Timestamp cutoff = Timestamp.from(Instant.now().minus(olderThanDays, ChronoUnit.DAYS));
+        int deleted = jdbcTemplate.update(sql, cutoff);
+        log.debug("Deleted {} old processed outbox events older than {} days", deleted, olderThanDays);
+        return deleted;
     }
 }

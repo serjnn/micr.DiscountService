@@ -12,9 +12,10 @@ public record OutboxEvent(
         int retryCount,
         String errorMessage,
         Instant createdAt,
-        Instant processedAt
+        Instant processedAt,
+        Instant nextRetryAt
 ) {
     public static OutboxEvent pending(String aggregateType, String aggregateId, String eventType, String payload) {
-        return new OutboxEvent(null, aggregateType, aggregateId, eventType, payload, "PENDING", 0, null, null, null);
+        return new OutboxEvent(null, aggregateType, aggregateId, eventType, payload, "PENDING", 0, null, null, null, null);
     }
 }

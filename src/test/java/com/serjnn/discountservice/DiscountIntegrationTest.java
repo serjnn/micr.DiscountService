@@ -127,9 +127,13 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
-    void shouldDeleteDiscountAndReturn404WhenNotFound() {
+    void shouldDeleteDiscountAndReturn404WhenNotFound() throws InterruptedException {
         DiscountRequest request = new DiscountRequest(401L, new BigDecimal("12.50"));
         restTemplate.postForEntity("/api/v1/discounts", List.of(request), Void.class);
+
+        DiscountChangesDto createMsg = kafkaMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(createMsg).isNotNull();
+        assertThat(createMsg.productId()).isEqualTo(401L);
 
         // Delete existing discount
         ResponseEntity<Void> deleteResponse = restTemplate.exchange(
@@ -143,6 +147,13 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
         // Verify deleted
         ResponseEntity<DiscountResponse> getResponse = restTemplate.getForEntity("/api/v1/discounts/401", DiscountResponse.class);
         assertThat(getResponse.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+
+        // Verify Kafka event for deletion (newDiscount = 0, prevDiscount = 12.50)
+        DiscountChangesDto deleteMsg = kafkaMessages.poll(10, TimeUnit.SECONDS);
+        assertThat(deleteMsg).isNotNull();
+        assertThat(deleteMsg.productId()).isEqualTo(401L);
+        assertThat(deleteMsg.newDiscount()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(deleteMsg.prevDiscount()).isEqualByComparingTo(new BigDecimal("12.50"));
 
         // Deleting non-existent should return 404
         ResponseEntity<Void> deleteNonExistentResponse = restTemplate.exchange(
@@ -224,6 +235,26 @@ public class DiscountIntegrationTest extends BaseIntegrationTest {
                             Integer.class
                     );
                     assertThat(processedCount).isEqualTo(1);
+                });
+    }
+
+    @Test
+    void shouldHandleFailedOutboxEventWithRetryAndBackoff() {
+        // Insert a malformed outbox event that fails deserialization
+        jdbcTemplate.update(
+                "INSERT INTO outbox_events (aggregate_type, aggregate_id, event_type, payload, status, retry_count, created_at) " +
+                "VALUES ('PRODUCT_DISCOUNT', '901', 'DISCOUNT_CHANGED', 'INVALID_JSON', 'PENDING', 0, NOW())"
+        );
+
+        // Wait until it reaches FAILED status after max-retries (3 in application-test.yaml)
+        org.awaitility.Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    Integer failedCount = jdbcTemplate.queryForObject(
+                            "SELECT COUNT(*) FROM outbox_events WHERE aggregate_id = '901' AND status = 'FAILED' AND retry_count >= 3",
+                            Integer.class
+                    );
+                    assertThat(failedCount).isEqualTo(1);
                 });
     }
 }
