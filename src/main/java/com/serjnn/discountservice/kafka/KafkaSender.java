@@ -1,8 +1,8 @@
 package com.serjnn.discountservice.kafka;
 
+import com.serjnn.discountservice.config.KafkaTopicProperties;
 import com.serjnn.discountservice.dto.DiscountChangesDto;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
@@ -18,9 +18,9 @@ public class KafkaSender {
 
     public KafkaSender(
             KafkaTemplate<String, DiscountChangesDto> kafkaTemplate,
-            @Value("${spring.kafka.topic.discount-changes}") String topicName) {
+            KafkaTopicProperties topicProperties) {
         this.kafkaTemplate = kafkaTemplate;
-        this.topicName = topicName;
+        this.topicName = topicProperties.discountChanges();
     }
 
     public CompletableFuture<SendResult<String, DiscountChangesDto>> sendDiscountChanges(DiscountChangesDto discountChangesDto) {

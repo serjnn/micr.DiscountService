@@ -82,6 +82,13 @@ Key enhancements include:
 - Updated `shouldDeleteDiscountAndReturn404WhenNotFound` to assert Kafka message emission upon discount deletion.
 - Added `shouldHandleFailedOutboxEventWithRetryAndBackoff` to verify resilient retry lifecycle and terminal `FAILED` status transition.
 
+### 9. Type-Safe Configuration Properties as Records
+- Created [`OutboxProperties.java`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/config/OutboxProperties.java) (`@ConfigurationProperties(prefix = "outbox")`) with nested record components `Scheduler` and `Cleanup`.
+- Created [`KafkaTopicProperties.java`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/config/KafkaTopicProperties.java) (`@ConfigurationProperties(prefix = "spring.kafka.topic")`).
+- Added `@ConfigurationPropertiesScan` to [`DiscountServiceApplication.java`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/DiscountServiceApplication.java).
+- Refactored [`OutboxScheduler`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/outbox/OutboxScheduler.java), [`KafkaSender`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/kafka/KafkaSender.java), and [`KafkaTopicConfig`](file:///C:/Users/sersh/IdeaProjects/micr.DiscountService/src/main/java/com/serjnn/discountservice/kafka/KafkaTopicConfig.java) to inject typed property records, eliminating all scattered `@Value` annotations.
+- Added `spring-boot-configuration-processor` to `pom.xml`.
+
 ---
 
 ## 🧪 4. Test Verification
@@ -91,7 +98,8 @@ Key enhancements include:
 [INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
 [INFO] ------------------------------------------------------------------------
 [INFO] BUILD SUCCESS
-[INFO] Total time: 01:13 min
+[INFO] Total time: 01:32 min
 [INFO] ------------------------------------------------------------------------
 ```
 All integration tests passed using Testcontainers with **PostgreSQL 15** and **Kafka (confluentinc/cp-kafka:7.4.0)**.
+
